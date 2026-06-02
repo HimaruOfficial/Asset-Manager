@@ -1,3 +1,9 @@
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// Load .env from the artifact root — does NOT override vars already set by Replit
+config({ path: resolve(import.meta.dirname, "../.env"), override: false });
+
 import app from "./app";
 import { logger } from "./lib/logger";
 
