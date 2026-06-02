@@ -1,0 +1,44 @@
+You are an expert Full-Stack Developer and premium UI/UX Designer. Please build a high-end SaaS Savings and Expense Tracker WebApp from scratch in this workspace.
+
+### 1. TECH STACK & INITIAL SETUP
+- Framework: Next.js (App Router) with React.
+- Styling: Tailwind CSS.
+- Components: shadcn/ui (install necessary components like cards, inputs, buttons, dropdowns) and lucide-react for icons.
+- Charts: recharts.
+- Please initialize the Next.js project, install all required dependencies, and set up the global CSS for a Dark Mode theme.
+
+### 2. DESIGN SYSTEM & UI GUIDELINES
+- Vibe: Premium fintech SaaS (like Linear, Stripe, or modern crypto dashboards).
+- Layout: Bento Grid architecture for the main dashboard. High visual hierarchy, glassmorphism (backdrop-blur), and thin 1px borders (#1F2937).
+- Theme: Modern Dark Mode (#0B0F19 background) with Emerald Green (#10B981) for positive numbers and Rose Red (#F43F5E) for expenses.
+- Charts: Use Recharts for sleek Area Charts (savings metrics) and Doughnut Charts (expense categories). Remove default grid lines.
+
+### 3. MULTI-USER AUTH & PREMIUM BADGE SYSTEM
+- Build a secure Register and Login page. Users must claim a unique `@username`.
+- Profile Badge Logic: Display verification badges right next to the `@username` across the app based on their tier:
+  - Basic Tier: No badge.
+  - Pro Tier (Blue): Render a premium SVG Blue Checkmark icon.
+  - Pro Tier (Purple): Render an exclusive SVG Purple Checkmark icon.
+
+### 4. TELEGRAM INTEGRATION (SERVER-SIDE)
+- In the User Profile settings, add a field for users to input their "Telegram Chat ID".
+- Create an API route that can trigger a POST request to Telegram API (`https://api.telegram.org/bot<TOKEN>/sendMessage`).
+- Note: Use mocked environment variables for now, but ensure the fetch logic is ready to notify admins on new registration, and notify users when they log a transaction.
+
+### 5. IN-APP NOTIFICATION SYSTEM (BELL ICON)
+- Add a Notification Bell icon in the top navigation bar.
+- Create a mock state/database for `notifications` (columns: id, target_username, message, is_read, created_at).
+- Display a red indicator dot on the bell if there are unread messages.
+- Clicking the bell opens a beautiful dropdown/modal showing the messages.
+
+### 6. CORE FINANCIAL FEATURES (Filtered by @username)
+- Dashboard metrics (Net Balance, Income, Expenses, Savings Goal Progress Bars).
+- Build the UI and data layer for 3 main data structures: `users`, `savings_goals`, and `transactions`. (You can use local state or a mock JSON API first to represent the Google Sheets backend).
+- Implement `<Skeleton />` loaders during data fetch.
+
+### 7. PREMIUM UPGRADE FLOW (SociaBuzz)
+- Build an "Upgrade to Pro" page with a premium pricing card highlighting Pro benefits.
+- Primary CTA Button: "Upgrade via SociaBuzz" (links to #).
+- Add banner: "⚠️ Important: Please write your exact @username in the SociaBuzz message so our admin can instantly verify and activate your Blue/Purple badge."
+
+Please execute this step-by-step. Start by setting up the Next.js environment and Tailwind, then build the layouts and core components.
