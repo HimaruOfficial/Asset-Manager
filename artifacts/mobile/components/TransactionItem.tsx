@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Transaction } from "@/context/AppContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { useColors } from "@/hooks/useColors";
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -46,6 +47,7 @@ interface Props {
 
 export function TransactionItem({ transaction, onDelete }: Props) {
   const colors = useColors();
+  const { format } = useCurrency();
   const isIncome = transaction.type === "income";
   const iconName = CATEGORY_ICONS[transaction.category] ?? "circle";
   const iconColor = isIncome ? colors.income : colors.expense;
@@ -73,7 +75,7 @@ export function TransactionItem({ transaction, onDelete }: Props) {
       </View>
       <View style={styles.right}>
         <Text style={[styles.amount, { color: iconColor }]}>
-          {isIncome ? "+" : "-"}${transaction.amount.toLocaleString()}
+          {isIncome ? "+" : "-"}{format(transaction.amount)}
         </Text>
         {onDelete && (
           <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

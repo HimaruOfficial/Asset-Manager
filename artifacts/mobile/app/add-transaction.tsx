@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TransactionCategory, TransactionType, useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { useColors } from "@/hooks/useColors";
 
 const INCOME_CATEGORIES: { value: TransactionCategory; label: string; icon: string }[] = [
@@ -38,11 +39,19 @@ const EXPENSE_CATEGORIES: { value: TransactionCategory; label: string; icon: str
   { value: "other_expense", label: "Other", icon: "minus-circle" },
 ];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  salary: "Salary", freelance: "Freelance", investment: "Investment", gift: "Gift",
+  other_income: "Other Income", food: "Food & Dining", transport: "Transport",
+  housing: "Housing", health: "Health", entertainment: "Entertainment",
+  shopping: "Shopping", education: "Education", utilities: "Utilities", other_expense: "Other",
+};
+
 export default function AddTransactionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { addTransaction } = useApp();
+  const { inputPrefix, currency, format } = useCurrency();
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -68,6 +77,7 @@ export default function AddTransactionScreen() {
     if (!user) return;
     setLoading(true);
     setError("");
+
     await addTransaction({
       userId: user.id,
       type,
@@ -76,6 +86,30 @@ export default function AddTransactionScreen() {
       description: description.trim(),
       date: new Date().toISOString(),
     });
+
+    // Fire-and-forget: Telegram notification via API server
+    try {
+      const apiBase = process.env["EXPO_PUBLIC_DOMAIN"]
+        ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+        : "/api";
+      await fetch(`${apiBase}/notifications/transaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: user.username,
+          telegramChatId: user.telegramChatId,
+          type,
+          amount: amt,
+          currency,
+          description: description.trim(),
+          category: CATEGORY_LABELS[category] ?? category,
+          formattedAmount: format(amt),
+        }),
+      });
+    } catch {
+      // Non-critical — never block the user
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
   };
@@ -86,7 +120,10 @@ export default function AddTransactionScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: topPad + 16, paddingBottom: botPad + 40 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: topPad + 16, paddingBottom: botPad + 40 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -96,7 +133,9 @@ export default function AddTransactionScreen() {
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>New Transaction</Text>
-          <View style={{ width: 22 }} />
+          <View style={[styles.currencyBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.currencyBadgeText, { color: colors.mutedForeground }]}>{currency}</Text>
+          </View>
         </View>
 
         {/* Type Toggle */}
@@ -106,25 +145,29 @@ export default function AddTransactionScreen() {
             onPress={() => handleTypeChange("expense")}
           >
             <Feather name="arrow-up-right" size={15} color={type === "expense" ? "white" : colors.mutedForeground} />
-            <Text style={[styles.typeTabText, { color: type === "expense" ? "white" : colors.mutedForeground }]}>Expense</Text>
+            <Text style={[styles.typeTabText, { color: type === "expense" ? "white" : colors.mutedForeground }]}>
+              Expense
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeTab, type === "income" && { backgroundColor: colors.income }]}
             onPress={() => handleTypeChange("income")}
           >
             <Feather name="arrow-down-left" size={15} color={type === "income" ? "white" : colors.mutedForeground} />
-            <Text style={[styles.typeTabText, { color: type === "income" ? "white" : colors.mutedForeground }]}>Income</Text>
+            <Text style={[styles.typeTabText, { color: type === "income" ? "white" : colors.mutedForeground }]}>
+              Income
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Amount */}
         <View style={[styles.amountBox, { backgroundColor: activeColor + "10", borderColor: activeColor + "30" }]}>
-          <Text style={[styles.currencySign, { color: activeColor }]}>$</Text>
+          <Text style={[styles.currencySign, { color: activeColor }]}>{inputPrefix}</Text>
           <TextInput
             style={[styles.amountInput, { color: activeColor }]}
             value={amount}
             onChangeText={setAmount}
-            placeholder="0.00"
+            placeholder="0"
             placeholderTextColor={activeColor + "60"}
             keyboardType="decimal-pad"
             autoFocus
@@ -161,8 +204,17 @@ export default function AddTransactionScreen() {
                 ]}
                 onPress={() => { Haptics.selectionAsync(); setCategory(cat.value); }}
               >
-                <Feather name={cat.icon as any} size={13} color={category === cat.value ? "white" : colors.mutedForeground} />
-                <Text style={[styles.categoryLabel, { color: category === cat.value ? "white" : colors.mutedForeground }]}>
+                <Feather
+                  name={cat.icon as any}
+                  size={13}
+                  color={category === cat.value ? "white" : colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    styles.categoryLabel,
+                    { color: category === cat.value ? "white" : colors.mutedForeground },
+                  ]}
+                >
                   {cat.label}
                 </Text>
               </TouchableOpacity>
@@ -183,7 +235,9 @@ export default function AddTransactionScreen() {
           disabled={loading}
           activeOpacity={0.85}
         >
-          {loading ? <ActivityIndicator color="white" size="small" /> : (
+          {loading ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
             <Text style={styles.submitText}>Save Transaction</Text>
           )}
         </TouchableOpacity>
@@ -197,20 +251,62 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 },
   title: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  typeToggle: { flexDirection: "row", borderRadius: 14, borderWidth: 1, padding: 4, gap: 4, marginBottom: 20 },
-  typeTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
+  currencyBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
+  currencyBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  typeToggle: {
+    flexDirection: "row",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+    marginBottom: 20,
+  },
+  typeTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
   typeTabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  amountBox: { flexDirection: "row", alignItems: "center", borderRadius: 16, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 16, marginBottom: 20, gap: 4 },
-  currencySign: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  amountBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 20,
+    gap: 4,
+  },
+  currencySign: { fontSize: 26, fontFamily: "Inter_700Bold" },
   amountInput: { flex: 1, fontSize: 42, fontFamily: "Inter_700Bold", letterSpacing: -1 },
   field: { marginBottom: 20, gap: 8 },
   label: { fontSize: 13, fontFamily: "Inter_500Medium" },
   inputBox: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, height: 52, justifyContent: "center" },
   textInput: { fontSize: 15, fontFamily: "Inter_400Regular" },
   categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
   categoryLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
   errorText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
   submitBtn: { height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   submitText: { color: "white", fontSize: 16, fontFamily: "Inter_600SemiBold" },

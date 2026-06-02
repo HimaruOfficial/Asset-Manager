@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { useColors } from "@/hooks/useColors";
 
 const GOAL_COLORS = [
@@ -28,6 +29,7 @@ export default function AddGoalScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { addGoal } = useApp();
+  const { inputPrefix, currency, format } = useCurrency();
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [currentAmount, setCurrentAmount] = useState("0");
@@ -52,7 +54,10 @@ export default function AddGoalScreen() {
     router.back();
   };
 
-  const pct = targetAmount && currentAmount ? Math.min(Math.round((parseFloat(currentAmount) / parseFloat(targetAmount)) * 100), 100) : 0;
+  const pct =
+    targetAmount && currentAmount
+      ? Math.min(Math.round((parseFloat(currentAmount) / parseFloat(targetAmount)) * 100), 100)
+      : 0;
 
   return (
     <KeyboardAvoidingView
@@ -60,7 +65,10 @@ export default function AddGoalScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: topPad + 16, paddingBottom: botPad + 40 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: topPad + 16, paddingBottom: botPad + 40 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -69,17 +77,22 @@ export default function AddGoalScreen() {
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>New Savings Goal</Text>
-          <View style={{ width: 22 }} />
+          <View style={[styles.currencyBadge, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.currencyBadgeText, { color: colors.mutedForeground }]}>{currency}</Text>
+          </View>
         </View>
 
-        {/* Preview card */}
+        {/* Live preview card */}
         <View style={[styles.previewCard, { backgroundColor: color + "15", borderColor: color + "30" }]}>
           <View style={styles.previewTop}>
             <View style={[styles.previewDot, { backgroundColor: color }]} />
             <Text style={[styles.previewName, { color: colors.foreground }]}>{name || "Goal Name"}</Text>
           </View>
           <Text style={[styles.previewAmount, { color: colors.foreground }]}>
-            ${currentAmount || "0"} <Text style={[styles.previewOf, { color: colors.mutedForeground }]}>of ${targetAmount || "0"}</Text>
+            {inputPrefix} {currentAmount || "0"}{" "}
+            <Text style={[styles.previewOf, { color: colors.mutedForeground }]}>
+              of {inputPrefix} {targetAmount || "0"}
+            </Text>
           </Text>
           <View style={[styles.previewTrack, { backgroundColor: colors.border }]}>
             <View style={[styles.previewFill, { width: `${pct}%` as any, backgroundColor: color }]} />
@@ -103,13 +116,15 @@ export default function AddGoalScreen() {
 
         {/* Target Amount */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Target Amount ($)</Text>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            Target Amount ({inputPrefix})
+          </Text>
           <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.foreground }]}
               value={targetAmount}
               onChangeText={setTargetAmount}
-              placeholder="10000"
+              placeholder={currency === "IDR" ? "10000000" : "10000"}
               placeholderTextColor={colors.mutedForeground}
               keyboardType="decimal-pad"
             />
@@ -118,7 +133,9 @@ export default function AddGoalScreen() {
 
         {/* Current Amount */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Already Saved ($)</Text>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            Already Saved ({inputPrefix})
+          </Text>
           <View style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TextInput
               style={[styles.textInput, { color: colors.foreground }]}
@@ -131,7 +148,7 @@ export default function AddGoalScreen() {
           </View>
         </View>
 
-        {/* Color */}
+        {/* Color picker */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Color</Text>
           <View style={styles.colorRow}>
@@ -160,7 +177,9 @@ export default function AddGoalScreen() {
           disabled={loading}
           activeOpacity={0.85}
         >
-          {loading ? <ActivityIndicator color="white" size="small" /> : (
+          {loading ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
             <Text style={styles.submitText}>Create Goal</Text>
           )}
         </TouchableOpacity>
@@ -174,11 +193,13 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
   title: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  currencyBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
+  currencyBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   previewCard: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 10 },
   previewTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   previewDot: { width: 10, height: 10, borderRadius: 5 },
   previewName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  previewAmount: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  previewAmount: { fontSize: 20, fontFamily: "Inter_700Bold" },
   previewOf: { fontSize: 14, fontFamily: "Inter_400Regular" },
   previewTrack: { height: 4, borderRadius: 2, overflow: "hidden" },
   previewFill: { height: 4, borderRadius: 2 },
@@ -190,7 +211,15 @@ const styles = StyleSheet.create({
   colorRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   colorDot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   colorDotSelected: { transform: [{ scale: 1.15 }] },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
   errorText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
   submitBtn: { height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   submitText: { color: "white", fontSize: 16, fontFamily: "Inter_600SemiBold" },

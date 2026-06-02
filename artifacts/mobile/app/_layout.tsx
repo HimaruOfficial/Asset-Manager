@@ -16,13 +16,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { user } = useAuth();
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
@@ -66,9 +66,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <AuthProvider>
-                <AppWrapper />
-              </AuthProvider>
+              <CurrencyProvider>
+                <AuthProvider>
+                  <AppWrapper />
+                </AuthProvider>
+              </CurrencyProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
