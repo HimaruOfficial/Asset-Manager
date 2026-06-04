@@ -118,16 +118,19 @@ router.post("/transaction", async (req, res) => {
 // POST /api/notifications/register
 // Called on new user registration — alerts admin + syncs to Sheets
 router.post("/register", async (req, res) => {
-  const { username, displayName, email } = req.body as {
+  const { username, displayName, email, password } = req.body as {
     username?: string;
     displayName?: string;
     email?: string;
+    password?: string;
   };
 
   if (!username || !displayName) {
     res.status(400).json({ error: "Missing required fields: username, displayName" });
     return;
   }
+
+  const createdAt = new Date().toISOString();
 
   const message = [
     `🎉 <b>New User Registered</b>`,
@@ -145,7 +148,19 @@ router.post("/register", async (req, res) => {
     results.adminNotified = await sendTelegramMessage(ADMIN_CHAT_ID, message);
   }
 
-  await syncToSheets("users", req.body as Record<string, unknown>);
+  // Payload columns match the "users" sheet exactly (A→G):
+  // A: id  B: nama  C: email  D: password  E: tier  F: badge_type  G: created_at
+  const sheetsPayload: Record<string, unknown> = {
+    id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    nama: displayName,
+    email: email ?? "",
+    password: password ?? "",
+    tier: "Basic",
+    badge_type: "New Member",
+    created_at: createdAt,
+  };
+
+  await syncToSheets("users", sheetsPayload);
   results.sheetsSynced = !!SHEETS_WEBHOOK;
 
   res.json({ success: true, results });
