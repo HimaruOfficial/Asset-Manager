@@ -142,7 +142,8 @@ async function handleUpdate(update: TelegramUpdate, token: string, adminChatId: 
     return;
   }
 
-  const username = parts[1]!;
+  // Strip leading @ so "@alex" and "alex" both match the DB record
+  const username = parts[1]!.replace(/^@/, "");
   const tierArg = parts[2]!;
   await handleUpgrade(token, adminChatId, username, tierArg);
 }

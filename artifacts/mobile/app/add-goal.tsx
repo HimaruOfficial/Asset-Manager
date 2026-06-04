@@ -34,8 +34,20 @@ export default function AddGoalScreen() {
   const [targetAmount, setTargetAmount] = useState("");
   const [currentAmount, setCurrentAmount] = useState("0");
   const [color, setColor] = useState(GOAL_COLORS[0]);
+  const [hasDeadline, setHasDeadline] = useState(false);
+  const [deadlineDay, setDeadlineDay] = useState("");
+  const [deadlineMonth, setDeadlineMonth] = useState("");
+  const [deadlineYear, setDeadlineYear] = useState(String(new Date().getFullYear() + 1));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const formattedDeadline = (): string => {
+    if (!hasDeadline) return "";
+    const d = deadlineDay.padStart(2, "0");
+    const m = deadlineMonth.padStart(2, "0");
+    const y = deadlineYear || String(new Date().getFullYear() + 1);
+    return `${y}-${m}-${d}`;
+  };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -46,10 +58,19 @@ export default function AddGoalScreen() {
     if (isNaN(target) || target <= 0) { setError("Enter a valid target amount"); return; }
     const current = parseFloat(currentAmount) || 0;
     if (current > target) { setError("Current amount can't exceed target"); return; }
+    if (hasDeadline) {
+      const d = parseInt(deadlineDay), m = parseInt(deadlineMonth), y = parseInt(deadlineYear);
+      if (!deadlineDay || !deadlineMonth || !deadlineYear || isNaN(d) || isNaN(m) || isNaN(y)
+          || d < 1 || d > 31 || m < 1 || m > 12 || y < new Date().getFullYear()) {
+        setError("Enter a valid deadline date (DD / MM / YYYY)");
+        return;
+      }
+    }
     if (!user) return;
     setLoading(true);
     setError("");
-    await addGoal({ userId: user.id, name: name.trim(), targetAmount: target, currentAmount: current, color });
+    const deadline = formattedDeadline();
+    await addGoal({ userId: user.id, name: name.trim(), targetAmount: target, currentAmount: current, color, deadline: deadline || undefined });
 
     // Fire-and-forget: sync to Google Sheets savings_goals sheet
     try {
@@ -64,7 +85,7 @@ export default function AddGoalScreen() {
           goal_name: name.trim(),
           target_amount: target,
           current_amount: current,
-          deadline: "",
+          deadline,
         }),
       }).catch(() => {/* non-critical */});
     } catch {/* non-critical */}
@@ -167,6 +188,69 @@ export default function AddGoalScreen() {
           </View>
         </View>
 
+        {/* Deadline */}
+        <View style={styles.field}>
+          <View style={styles.deadlineHeader}>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>Deadline (Optional)</Text>
+            <TouchableOpacity
+              style={[
+                styles.deadlineToggle,
+                { backgroundColor: hasDeadline ? colors.primary + "20" : colors.card, borderColor: hasDeadline ? colors.primary + "50" : colors.border },
+              ]}
+              onPress={() => { Haptics.selectionAsync(); setHasDeadline(!hasDeadline); }}
+              activeOpacity={0.7}
+            >
+              <Feather name={hasDeadline ? "calendar" : "plus"} size={13} color={hasDeadline ? colors.primary : colors.mutedForeground} />
+              <Text style={[styles.deadlineToggleText, { color: hasDeadline ? colors.primary : colors.mutedForeground }]}>
+                {hasDeadline ? "Remove" : "Set date"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {hasDeadline && (
+            <View style={[styles.dateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.dateSegment}>
+                <Text style={[styles.dateSegmentLabel, { color: colors.mutedForeground }]}>DD</Text>
+                <TextInput
+                  style={[styles.dateSegmentInput, { color: colors.foreground }]}
+                  value={deadlineDay}
+                  onChangeText={(v) => setDeadlineDay(v.replace(/\D/g, "").slice(0, 2))}
+                  placeholder="01"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+              <View style={[styles.dateSep, { backgroundColor: colors.border }]} />
+              <View style={styles.dateSegment}>
+                <Text style={[styles.dateSegmentLabel, { color: colors.mutedForeground }]}>MM</Text>
+                <TextInput
+                  style={[styles.dateSegmentInput, { color: colors.foreground }]}
+                  value={deadlineMonth}
+                  onChangeText={(v) => setDeadlineMonth(v.replace(/\D/g, "").slice(0, 2))}
+                  placeholder="12"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+              <View style={[styles.dateSep, { backgroundColor: colors.border }]} />
+              <View style={[styles.dateSegment, { flex: 2 }]}>
+                <Text style={[styles.dateSegmentLabel, { color: colors.mutedForeground }]}>YYYY</Text>
+                <TextInput
+                  style={[styles.dateSegmentInput, { color: colors.foreground }]}
+                  value={deadlineYear}
+                  onChangeText={(v) => setDeadlineYear(v.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="2026"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+              <Feather name="calendar" size={16} color={colors.primary} style={{ marginLeft: 6 }} />
+            </View>
+          )}
+        </View>
+
         {/* Color picker */}
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Color</Text>
@@ -230,6 +314,14 @@ const styles = StyleSheet.create({
   colorRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   colorDot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   colorDotSelected: { transform: [{ scale: 1.15 }] },
+  deadlineHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  deadlineToggle: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  deadlineToggleText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  dateRow: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 0 },
+  dateSegment: { flex: 1, alignItems: "center", gap: 2 },
+  dateSegmentLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, textTransform: "uppercase" },
+  dateSegmentInput: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center", minWidth: 36, padding: 0 },
+  dateSep: { width: 1, height: 32, marginHorizontal: 4 },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
