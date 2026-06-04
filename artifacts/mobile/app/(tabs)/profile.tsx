@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [telegramId, setTelegramId] = useState(user?.telegramChatId ?? "");
   const [saving, setSaving] = useState(false);
+  const [testingTelegram, setTestingTelegram] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const botPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -54,6 +56,38 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await logout();
     router.replace("/auth/login");
+  };
+
+  const handleTestTelegram = async () => {
+    const chatId = telegramId.trim() || user?.telegramChatId?.trim();
+    if (!chatId) {
+      Alert.alert("No Chat ID", "Enter your Telegram Chat ID first, then save it before testing.");
+      return;
+    }
+    setTestingTelegram(true);
+    try {
+      const apiBase = process.env["EXPO_PUBLIC_DOMAIN"]
+        ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+        : "/api";
+      const res = await fetch(`${apiBase}/notifications/telegram/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId }),
+      });
+      const json = (await res.json()) as { success: boolean; tokenConfigured: boolean };
+      if (json.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("✅ Connected!", "Test message sent to your Telegram. Check your chat.");
+      } else if (!json.tokenConfigured) {
+        Alert.alert("Bot Not Configured", "The server's TELEGRAM_BOT_TOKEN is missing. Check your .env file.");
+      } else {
+        Alert.alert("Send Failed", "Bot token is set but the message couldn't be delivered. Double-check your Chat ID.");
+      }
+    } catch {
+      Alert.alert("Connection Error", "Could not reach the API server. Make sure it's running.");
+    } finally {
+      setTestingTelegram(false);
+    }
   };
 
   const tierColor = user ? TIER_COLORS[user.tier] : colors.mutedForeground;
@@ -157,6 +191,28 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           </View>
+          <TouchableOpacity
+            style={[
+              styles.testTelegramBtn,
+              {
+                backgroundColor: (telegramId || user?.telegramChatId) ? "#229ED920" : colors.border + "60",
+                borderColor: (telegramId || user?.telegramChatId) ? "#229ED950" : colors.border,
+                opacity: testingTelegram ? 0.6 : 1,
+              },
+            ]}
+            onPress={handleTestTelegram}
+            disabled={testingTelegram}
+            activeOpacity={0.75}
+          >
+            {testingTelegram ? (
+              <ActivityIndicator size="small" color="#229ED9" />
+            ) : (
+              <Feather name="send" size={14} color={(telegramId || user?.telegramChatId) ? "#229ED9" : colors.mutedForeground} />
+            )}
+            <Text style={[styles.testTelegramText, { color: (telegramId || user?.telegramChatId) ? "#229ED9" : colors.mutedForeground }]}>
+              {testingTelegram ? "Sending…" : "Test Telegram Connection"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -227,8 +283,10 @@ const styles = StyleSheet.create({
   rowValueText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   inlineInput: { fontSize: 14, fontFamily: "Inter_400Regular", borderBottomWidth: 1, minWidth: 120, paddingBottom: 2 },
   divider: { height: 1, marginHorizontal: 14 },
-  telegramInput: { marginHorizontal: 14, marginBottom: 14, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
+  telegramInput: { marginHorizontal: 14, marginBottom: 10, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
   telegramField: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  testTelegramBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 14, marginBottom: 14, paddingVertical: 11, borderRadius: 10, borderWidth: 1 },
+  testTelegramText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 50, borderRadius: 14, marginBottom: 20 },
   saveBtnText: { color: "white", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 });

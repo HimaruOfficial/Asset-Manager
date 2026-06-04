@@ -97,6 +97,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(`@fintrack:pw:${newUser.username}`, password);
     setUser(newUser);
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(newUser.id));
+
+    // Fire-and-forget: notify backend of new registration (Telegram + Sheets sync)
+    try {
+      const apiBase = process.env["EXPO_PUBLIC_DOMAIN"]
+        ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+        : "/api";
+      fetch(`${apiBase}/notifications/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: newUser.username,
+          displayName: newUser.displayName,
+          email: newUser.email,
+        }),
+      }).catch(() => {/* non-critical */});
+    } catch {/* non-critical */}
+
     return { success: true };
   };
 

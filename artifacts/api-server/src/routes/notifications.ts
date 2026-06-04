@@ -58,13 +58,16 @@ async function sendTelegramMessage(chatId: string, text: string): Promise<boolea
 async function syncToSheets(event: string, payload: Record<string, unknown>): Promise<void> {
   if (!SHEETS_WEBHOOK) return;
   try {
-    await fetch(SHEETS_WEBHOOK, {
+    const res = await fetch(SHEETS_WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event, payload }),
     });
-  } catch {
-    // Non-critical
+    if (!res.ok) {
+      console.error(`[Sheets] Webhook responded with HTTP ${res.status} for event "${event}"`);
+    }
+  } catch (err) {
+    console.error(`[Sheets] Failed to sync event "${event}" to Google Sheets webhook:`, err);
   }
 }
 
