@@ -61,7 +61,7 @@ export default function UpgradeScreen() {
       <View style={[styles.warningBanner, { backgroundColor: "#F59E0B15", borderColor: "#F59E0B40" }]}>
         <Feather name="alert-triangle" size={16} color="#F59E0B" />
         <Text style={[styles.warningText, { color: "#F59E0B" }]}>
-          Important: When upgrading via SociaBuzz, please write your exact @username in the message so our admin can instantly verify and activate your badge.
+          ⚠️ Penting: Harap tuliskan Username Anda di catatan/pesan saat melakukan pembayaran di SociaBuzz agar proses upgrade bisa langsung diproses!
         </Text>
       </View>
 
@@ -90,7 +90,7 @@ export default function UpgradeScreen() {
         </View>
         <TouchableOpacity
           style={[styles.upgradeBtn, { backgroundColor: colors.badgeBlue }]}
-          onPress={() => Linking.openURL("#")}
+          onPress={() => Linking.openURL("https://sociabuzz.com/himaruofficialgaming")}
           activeOpacity={0.85}
         >
           <Feather name="external-link" size={15} color="white" />
@@ -126,11 +126,33 @@ export default function UpgradeScreen() {
         </View>
         <TouchableOpacity
           style={[styles.upgradeBtn, { backgroundColor: colors.badgePurple }]}
-          onPress={() => Linking.openURL("#")}
+          onPress={() => Linking.openURL("https://sociabuzz.com/himaruofficialgaming")}
           activeOpacity={0.85}
         >
           <Feather name="external-link" size={15} color="white" />
           <Text style={styles.upgradeBtnText}>Upgrade via SociaBuzz</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Donate Section */}
+      <View style={[styles.donateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.donateTop}>
+          <Text style={styles.donateEmoji}>☕</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.donateTitle, { color: colors.foreground }]}>Donasi kepada Creator</Text>
+            <Text style={[styles.donateSubtitle, { color: colors.mutedForeground }]}>
+              Suka aplikasi ini? Traktir kopi buat developer-nya 😊
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={[styles.donateBtn, { borderColor: colors.primary + "60" }]}
+          onPress={() => Linking.openURL("https://sociabuzz.com/himaruofficialgaming")}
+          activeOpacity={0.8}
+        >
+          <Feather name="heart" size={15} color={colors.primary} />
+          <Text style={[styles.donateBtnText, { color: colors.primary }]}>Donasi via SociaBuzz</Text>
+          <Feather name="external-link" size={13} color={colors.primary} />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -165,4 +187,11 @@ const styles = StyleSheet.create({
   featureText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   upgradeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, borderRadius: 14 },
   upgradeBtnText: { color: "white", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  donateCard: { borderRadius: 16, borderWidth: 1, padding: 18, gap: 14 },
+  donateTop: { flexDirection: "row", alignItems: "center", gap: 14 },
+  donateEmoji: { fontSize: 32 },
+  donateTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
+  donateSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  donateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 12, borderWidth: 1.5 },
+  donateBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });
