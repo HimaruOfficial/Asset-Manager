@@ -61,7 +61,7 @@ export default function DashboardScreen() {
               <Text style={[styles.displayName, { color: colors.foreground }]}>
                 @{user?.username}
               </Text>
-              {user && <BadgeIcon tier={user.tier} size={18} />}
+              {user && <BadgeIcon tier={user.tier} badgeType={user.badge_type} size={18} />}
             </View>
           </View>
           <View style={styles.headerRight}>

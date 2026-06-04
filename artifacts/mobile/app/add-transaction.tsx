@@ -104,6 +104,7 @@ export default function AddTransactionScreen() {
           description: description.trim(),
           category: CATEGORY_LABELS[category] ?? category,
           formattedAmount: format(amt),
+          date: new Date().toISOString(),
         }),
       });
     } catch {

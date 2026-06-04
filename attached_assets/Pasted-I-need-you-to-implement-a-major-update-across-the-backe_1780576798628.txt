@@ -1,0 +1,25 @@
+I need you to implement a major update across the backend API server and the mobile app UI. Please process these three tasks simultaneously:
+
+### TASK 1: Telegram Bot Admin Panel (Backend)
+I want to use the Telegram bot (using the existing `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ADMIN_CHAT_ID`) as my Admin Panel to upgrade user tiers.
+- Set up a Telegram bot listener in the API server. It MUST only respond to messages coming from the `TELEGRAM_ADMIN_CHAT_ID` for security.
+- Create an admin command: `/upgrade <username> <tier_type>` (e.g., pro, purple, basic).
+- If I type `/upgrade <username> pro`: Send a POST request to the `GOOGLE_SHEETS_WEBHOOK_URL` with this JSON payload: `{"event": "users", "action": "update", "target_username": "<username>", "new_tier": "Pro", "new_badge": "Verified Blue"}`
+- If I type `/upgrade <username> purple`: Send `new_tier` as "Pro" and `new_badge` as "Verified Purple".
+- If I type `/upgrade <username> basic`: Send `new_tier` as "Basic" and `new_badge` as "New Member".
+- Once the webhook returns `{"success":true}`, the bot should reply on Telegram with: "✅ User <username> successfully upgraded!". If it fails, reply with the error.
+
+### TASK 2: Sync New Google Sheets Models (Backend)
+I have added three new sheets to my Google Sheets database. Please set up the backend logic, routes, and payload structures so we can sync data to them just like we did with the "users" sheet. Here are the exact sheet names and column mappings in order:
+1. Sheet Name: "savings_goals" | Columns (A to F): id, username, goal_name, target_amount, current_amount, deadline
+2. Sheet Name: "transactions" | Columns (A to G): id, username, type, amount, category, date, notes
+3. Sheet Name: "notifications" | Columns (A to E): id, target_username, message, is_read, created_at
+Make sure whenever a request is sent to the Google Sheets webhook, it includes the correct `event` name (e.g., `event: "transactions"`) and the `payload` is an array strictly ordered to match the columns above.
+
+### TASK 3: Dynamic Verification Badges (Mobile App UI)
+Please update the UI components in the mobile app where the username is displayed (such as the Profile screen or Dashboard). 
+- I want to implement a dynamic verification badge system based on the user's `tier` and `badge_type` fetched from the backend.
+- If the user's `tier` is "Pro" or `badge_type` contains "Verified Blue", display a small blue checkmark icon (verified badge) right next to their username.
+- If the `badge_type` contains "Verified Purple", display a purple checkmark icon instead.
+- For "Basic" tier or "New Member" badge types, do not show any icon.
+- Make sure the layout uses `flexDirection: 'row'` and aligns the items vertically in the center so the badge sits neatly next to the text.

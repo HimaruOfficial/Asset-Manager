@@ -6,6 +6,7 @@ config({ path: resolve(import.meta.dirname, "../.env"), override: false });
 
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startTelegramAdminBot } from "./lib/telegram-bot";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startTelegramAdminBot();
 });

@@ -108,7 +108,7 @@ export default function ProfileScreen() {
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
             <Text style={[styles.displayName, { color: colors.foreground }]}>{user?.displayName}</Text>
-            {user && <BadgeIcon tier={user.tier} size={20} />}
+            {user && <BadgeIcon tier={user.tier} badgeType={user.badge_type} size={20} />}
           </View>
           <Text style={[styles.username, { color: colors.mutedForeground }]}>@{user?.username}</Text>
           <View style={[styles.tierBadge, { backgroundColor: tierColor + "20", borderColor: tierColor + "40" }]}>

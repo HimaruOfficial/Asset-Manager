@@ -9,6 +9,7 @@ export interface User {
   displayName: string;
   email: string;
   tier: BadgeTier;
+  badge_type?: string;
   telegramChatId?: string;
   createdAt: string;
 }

@@ -121,8 +121,20 @@ router.post("/transaction", async (req, res) => {
     results.adminNotified = await sendTelegramMessage(adminChatId, message);
   }
 
+  // Build structured payload matching "transactions" sheet columns (A→G):
+  // A: id  B: username  C: type  D: amount  E: category  F: date  G: notes
+  const txPayload: Record<string, unknown> = {
+    id: `txn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    username,
+    type,
+    amount: (req.body as Record<string, unknown>)["amount"] ?? 0,
+    category: category ?? "",
+    date: (req.body as Record<string, unknown>)["date"] ?? new Date().toISOString(),
+    notes: description ?? "",
+  };
+
   try {
-    await syncToSheets("transactions", req.body as Record<string, unknown>);
+    await syncToSheets("transactions", txPayload);
     results.sheetsSynced = true;
   } catch (err) {
     results.sheetsSynced = false;

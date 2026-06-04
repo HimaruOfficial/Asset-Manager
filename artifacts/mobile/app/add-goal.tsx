@@ -50,6 +50,25 @@ export default function AddGoalScreen() {
     setLoading(true);
     setError("");
     await addGoal({ userId: user.id, name: name.trim(), targetAmount: target, currentAmount: current, color });
+
+    // Fire-and-forget: sync to Google Sheets savings_goals sheet
+    try {
+      const apiBase = process.env["EXPO_PUBLIC_DOMAIN"]
+        ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+        : "/api";
+      fetch(`${apiBase}/sync/goal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: user.username,
+          goal_name: name.trim(),
+          target_amount: target,
+          current_amount: current,
+          deadline: "",
+        }),
+      }).catch(() => {/* non-critical */});
+    } catch {/* non-critical */}
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.back();
   };
