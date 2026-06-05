@@ -1,36 +1,7 @@
 import { Router } from "express";
+import { registerUser } from "../lib/user-store.js";
 
 const router = Router();
-
-// ─── Google Sheets Sync Layer ─────────────────────────────────────────────────
-//
-// To connect your Google Sheets database, set these environment variables:
-//
-//   GOOGLE_SHEETS_WEBHOOK_URL — A webhook URL (e.g. from Google Apps Script)
-//                               that accepts POST requests to sync data.
-//                               The app will POST { event, payload } to it.
-//
-// Example Apps Script webhook handler (paste in your Google Sheet's script editor):
-//   function doPost(e) {
-//     const data = JSON.parse(e.postData.contents);
-//     const sheet = SpreadsheetApp.openById('<YOUR_SHEET_ID>').getSheetByName(data.event);
-//     if (sheet) sheet.appendRow(Object.values(data.payload));
-//     return ContentService.createTextOutput('ok');
-//   }
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Telegram Bot Integration ─────────────────────────────────────────────────
-//
-// Set these environment variables to enable Telegram notifications:
-//
-//   TELEGRAM_BOT_TOKEN      — Your bot token from @BotFather on Telegram
-//   TELEGRAM_ADMIN_CHAT_ID  — (Optional) Admin's chat ID for registration alerts
-//
-// To get your Chat ID: message @userinfobot on Telegram.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// NOTE: All env vars are read lazily inside functions (not at module load time)
-// so that dotenv has already populated process.env before they are accessed.
 
 async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
   const token = process.env["TELEGRAM_BOT_TOKEN"];
@@ -48,50 +19,27 @@ async function sendTelegramMessage(chatId: string, text: string): Promise<boolea
   }
 }
 
-// Throws on any failure so callers can return 500 to the client.
 async function syncToSheets(event: string, payload: Record<string, unknown>): Promise<void> {
   const webhook = process.env["GOOGLE_SHEETS_WEBHOOK_URL"];
   if (!webhook) {
     throw new Error("[Sheets] GOOGLE_SHEETS_WEBHOOK_URL is not set in environment variables.");
   }
-
-  let responseText = "";
-  try {
-    const body = JSON.stringify({ event, payload });
-    console.log(`[Sheets] Sending to webhook — event: "${event}", payload:`, payload);
-
-    const res = await fetch(webhook, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-
-    responseText = await res.text();
-
-    if (!res.ok) {
-      throw new Error(
-        `[Sheets] Webhook returned HTTP ${res.status} for event "${event}". Response body: ${responseText}`,
-      );
-    }
-
-    console.log(`[Sheets] Webhook succeeded for event "${event}". Response: ${responseText}`);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Sheets] Sync failed for event "${event}":`, message);
-    throw err;
+  const res = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event, payload }),
+  });
+  const responseText = await res.text();
+  if (!res.ok) {
+    throw new Error(`[Sheets] Webhook returned HTTP ${res.status} for event "${event}". Body: ${responseText}`);
   }
 }
 
 // POST /api/notifications/transaction
-// Called when a user logs a transaction — sends Telegram message + syncs to Sheets
 router.post("/transaction", async (req, res) => {
   const { username, telegramChatId, type, formattedAmount, description, category } = req.body as {
-    username?: string;
-    telegramChatId?: string;
-    type?: string;
-    formattedAmount?: string;
-    description?: string;
-    category?: string;
+    username?: string; telegramChatId?: string; type?: string;
+    formattedAmount?: string; description?: string; category?: string;
   };
 
   if (!username || !type || !formattedAmount) {
@@ -113,20 +61,12 @@ router.post("/transaction", async (req, res) => {
   ].join("\n");
 
   const results: Record<string, unknown> = {};
+  if (telegramChatId) results.userNotified = await sendTelegramMessage(telegramChatId, message);
+  if (adminChatId) results.adminNotified = await sendTelegramMessage(adminChatId, message);
 
-  if (telegramChatId) {
-    results.userNotified = await sendTelegramMessage(telegramChatId, message);
-  }
-  if (adminChatId) {
-    results.adminNotified = await sendTelegramMessage(adminChatId, message);
-  }
-
-  // Build structured payload matching "transactions" sheet columns (A→G):
-  // A: id  B: username  C: type  D: amount  E: category  F: date  G: notes
   const txPayload: Record<string, unknown> = {
     id: `txn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    username,
-    type,
+    username, type,
     amount: (req.body as Record<string, unknown>)["amount"] ?? 0,
     category: category ?? "",
     date: (req.body as Record<string, unknown>)["date"] ?? new Date().toISOString(),
@@ -145,13 +85,9 @@ router.post("/transaction", async (req, res) => {
 });
 
 // POST /api/notifications/register
-// Called on new user registration — alerts admin + syncs to Sheets
 router.post("/register", async (req, res) => {
-  const { username, displayName, email, password } = req.body as {
-    username?: string;
-    displayName?: string;
-    email?: string;
-    password?: string;
+  const { username, displayName, email } = req.body as {
+    username?: string; displayName?: string; email?: string;
   };
 
   if (!username || !displayName) {
@@ -159,55 +95,41 @@ router.post("/register", async (req, res) => {
     return;
   }
 
-  const adminChatId = process.env["TELEGRAM_ADMIN_CHAT_ID"];
-  const createdAt = new Date().toISOString();
+  // Register in the server-side user store (source of truth for tier upgrades)
+  registerUser(username, displayName, email ?? "");
 
-  const message = [
+  const adminChatId = process.env["TELEGRAM_ADMIN_CHAT_ID"];
+  const regMessage = [
     `🎉 <b>New User Registered</b>`,
     ``,
     `👤 @${username} (${displayName})`,
     `📧 ${email ?? "—"}`,
     `🕐 ${new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}`,
     ``,
-    `ℹ️ Verify their badge in the admin panel.`,
+    `ℹ️ Use <code>/upgrade ${username} pro</code> to grant Pro Blue.`,
   ].join("\n");
 
-  if (adminChatId) {
-    await sendTelegramMessage(adminChatId, message);
-  }
+  if (adminChatId) await sendTelegramMessage(adminChatId, regMessage);
 
-  // Payload columns match the "users" sheet exactly (A→G):
-  // A: id  B: nama  C: email  D: password  E: tier  F: badge_type  G: created_at
+  // Also sync to Sheets if configured
   const sheetsPayload: Record<string, unknown> = {
     id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    nama: displayName,
-    email: email ?? "",
-    password: password ?? "",
-    tier: "Basic",
-    badge_type: "New Member",
-    created_at: createdAt,
+    nama: displayName, email: email ?? "",
+    tier: "Basic", badge_type: "New Member",
+    created_at: new Date().toISOString(),
   };
 
   try {
     await syncToSheets("users", sheetsPayload);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[Register] Google Sheets sync failed:", message);
-    res.status(500).json({ error: "Google Sheets sync failed", detail: message });
-    return;
-  }
+  } catch {/* non-critical if Sheets not configured */}
 
-  res.json({ success: true, sheetsSynced: true });
+  res.json({ success: true });
 });
 
 // POST /api/notifications/telegram/test
-// Test your Telegram bot setup — sends a test message to a given chat ID
 router.post("/telegram/test", async (req, res) => {
   const { chatId } = req.body as { chatId?: string };
-  if (!chatId) {
-    res.status(400).json({ error: "chatId is required" });
-    return;
-  }
+  if (!chatId) { res.status(400).json({ error: "chatId is required" }); return; }
   const token = process.env["TELEGRAM_BOT_TOKEN"];
   const sent = await sendTelegramMessage(
     chatId,

@@ -14,6 +14,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
@@ -40,6 +41,7 @@ function AppWrapper() {
   return (
     <AppProvider userId={user?.id ?? null}>
       <RootLayoutNav />
+      <UpgradeNotice />
     </AppProvider>
   );
 }

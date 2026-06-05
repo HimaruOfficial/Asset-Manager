@@ -1,9 +1,14 @@
 // Telegram Admin Bot — long-polling listener
 // Only responds to TELEGRAM_ADMIN_CHAT_ID for security.
-// Supported commands:
-//   /upgrade <username> pro     → tier "Pro",   badge "Verified Blue"
-//   /upgrade <username> purple  → tier "Pro",   badge "Verified Purple"
-//   /upgrade <username> basic   → tier "Basic", badge "New Member"
+// Commands:
+//   /upgrade <username> pro       → pro_blue  / Verified Blue
+//   /upgrade <username> pro_blue  → pro_blue  / Verified Blue
+//   /upgrade <username> purple    → pro_purple / Verified Purple
+//   /upgrade <username> pro_purple→ pro_purple / Verified Purple
+//   /upgrade <username> basic     → basic     / New Member
+//   /list                         → show all registered users
+
+import { getAllUsers, upgradeUser, type UserTier } from "./user-store.js";
 
 interface TelegramUpdate {
   update_id: number;
@@ -35,20 +40,23 @@ async function handleUpgrade(
   username: string,
   tierArg: string,
 ): Promise<void> {
-  let newTier: string;
+  let newTier: UserTier;
   let newBadge: string;
 
   switch (tierArg.toLowerCase()) {
     case "pro":
-      newTier = "Pro";
+    case "pro_blue":
+    case "blue":
+      newTier = "pro_blue";
       newBadge = "Verified Blue";
       break;
     case "purple":
-      newTier = "Pro";
+    case "pro_purple":
+      newTier = "pro_purple";
       newBadge = "Verified Purple";
       break;
     case "basic":
-      newTier = "Basic";
+      newTier = "basic";
       newBadge = "New Member";
       break;
     default:
@@ -60,53 +68,44 @@ async function handleUpgrade(
       return;
   }
 
+  // Write directly to the server-side user store (source of truth)
+  upgradeUser(username, newTier, newBadge);
+
+  // Also fire-and-forget to Google Sheets if configured (optional sync)
   const webhook = process.env["GOOGLE_SHEETS_WEBHOOK_URL"];
-  if (!webhook) {
-    await sendAdminMessage(token, adminChatId, "❌ GOOGLE_SHEETS_WEBHOOK_URL is not configured on the server.");
-    return;
-  }
-
-  try {
-    const payload = {
-      event: "users",
-      action: "update",
-      target_username: username,
-      new_tier: newTier,
-      new_badge: newBadge,
-    };
-    console.log("[TelegramBot] Sending upgrade to Sheets webhook:", payload);
-
-    const res = await fetch(webhook, {
+  if (webhook) {
+    fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const body = await res.text();
-    let parsed: { success?: boolean } = {};
-    try {
-      parsed = JSON.parse(body) as { success?: boolean };
-    } catch {/* response may not be JSON */}
-
-    if (res.ok && parsed.success) {
-      await sendAdminMessage(
-        token,
-        adminChatId,
-        `✅ User <b>@${username}</b> successfully upgraded!\nTier: <b>${newTier}</b> · Badge: <b>${newBadge}</b>`,
-      );
-    } else {
-      console.error(`[TelegramBot] Upgrade webhook failed — HTTP ${res.status}: ${body}`);
-      await sendAdminMessage(
-        token,
-        adminChatId,
-        `❌ Upgrade failed for <b>@${username}</b>.\nWebhook responded with HTTP ${res.status}:\n<code>${body}</code>`,
-      );
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[TelegramBot] Upgrade error:", msg);
-    await sendAdminMessage(token, adminChatId, `❌ Error upgrading <b>@${username}</b>:\n<code>${msg}</code>`);
+      body: JSON.stringify({
+        event: "users",
+        action: "update",
+        target_username: username,
+        new_tier: newBadge,
+        new_badge: newBadge,
+      }),
+    }).catch(() => {/* non-critical */});
   }
+
+  await sendAdminMessage(
+    token,
+    adminChatId,
+    `✅ User <b>@${username}</b> upgraded!\nTier: <b>${newTier}</b> · Badge: <b>${newBadge}</b>\n\n` +
+    `The user will see a congratulatory notification next time they open the app.`,
+  );
+}
+
+async function handleList(token: string, adminChatId: string): Promise<void> {
+  const users = getAllUsers();
+  if (users.length === 0) {
+    await sendAdminMessage(token, adminChatId, "📋 No registered users yet.");
+    return;
+  }
+  const lines = users.map((u) => {
+    const emoji = u.tier === "pro_purple" ? "🟣" : u.tier === "pro_blue" ? "🔵" : "⚪";
+    return `${emoji} <b>@${u.username}</b> — ${u.badge_type}`;
+  });
+  await sendAdminMessage(token, adminChatId, `📋 <b>Registered Users (${users.length})</b>\n\n${lines.join("\n")}`);
 }
 
 async function handleUpdate(update: TelegramUpdate, token: string, adminChatId: string): Promise<void> {
@@ -114,20 +113,22 @@ async function handleUpdate(update: TelegramUpdate, token: string, adminChatId: 
   if (!message?.text) return;
 
   const fromChatId = String(message.chat.id);
-
-  // Security: silently ignore any non-admin sender
-  if (fromChatId !== adminChatId) {
-    console.log(`[TelegramBot] Ignored message from non-admin chat ID: ${fromChatId}`);
-    return;
-  }
+  if (fromChatId !== adminChatId) return;
 
   const text = message.text.trim();
+
+  if (text.startsWith("/list")) {
+    await handleList(token, adminChatId);
+    return;
+  }
 
   if (!text.startsWith("/upgrade")) {
     await sendAdminMessage(
       token,
       adminChatId,
-      "🤖 <b>FinTrack Admin Bot</b>\n\nAvailable commands:\n<code>/upgrade &lt;username&gt; &lt;pro|purple|basic&gt;</code>",
+      "🤖 <b>FinTrack Admin Bot</b>\n\nCommands:\n" +
+      "<code>/upgrade &lt;username&gt; &lt;pro|purple|basic&gt;</code>\n" +
+      "<code>/list</code> — show all users",
     );
     return;
   }
@@ -142,7 +143,7 @@ async function handleUpdate(update: TelegramUpdate, token: string, adminChatId: 
     return;
   }
 
-  // Strip leading @ so "@alex" and "alex" both match the DB record
+  // Strip leading @ so "@alex" and "alex" both work
   const username = parts[1]!.replace(/^@/, "");
   const tierArg = parts[2]!;
   await handleUpgrade(token, adminChatId, username, tierArg);
@@ -150,7 +151,6 @@ async function handleUpdate(update: TelegramUpdate, token: string, adminChatId: 
 
 async function pollLoop(token: string, adminChatId: string): Promise<void> {
   let offset = 0;
-
   while (true) {
     try {
       const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${offset}&timeout=30&allowed_updates=%5B%22message%22%5D`;
@@ -163,12 +163,7 @@ async function pollLoop(token: string, adminChatId: string): Promise<void> {
       }
 
       const data = (await res.json()) as { ok: boolean; result: TelegramUpdate[] };
-
-      if (!data.ok) {
-        console.error("[TelegramBot] Telegram API returned ok=false:", data);
-        await sleep(5_000);
-        continue;
-      }
+      if (!data.ok) { await sleep(5_000); continue; }
 
       for (const update of data.result) {
         offset = update.update_id + 1;
@@ -186,16 +181,12 @@ export function startTelegramAdminBot(): void {
   const adminChatId = process.env["TELEGRAM_ADMIN_CHAT_ID"];
 
   if (!token || !adminChatId) {
-    console.log(
-      "[TelegramBot] TELEGRAM_BOT_TOKEN or TELEGRAM_ADMIN_CHAT_ID not set — admin bot disabled.",
-    );
+    console.log("[TelegramBot] TELEGRAM_BOT_TOKEN or TELEGRAM_ADMIN_CHAT_ID not set — admin bot disabled.");
     return;
   }
 
-  console.log("[TelegramBot] Admin bot started. Listening for /upgrade commands...");
-
-  // Fire-and-forget: runs independently of the HTTP server
+  console.log("[TelegramBot] Admin bot started. Listening for /upgrade and /list commands...");
   pollLoop(token, adminChatId).catch((err) => {
-    console.error("[TelegramBot] Poll loop crashed unexpectedly:", err);
+    console.error("[TelegramBot] Poll loop crashed:", err);
   });
 }

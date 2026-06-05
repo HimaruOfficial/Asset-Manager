@@ -43,6 +43,22 @@ export default function DashboardScreen() {
     return { income, expenses, net, savings };
   }, [transactions, goals]);
 
+  const isPro = user?.tier === "pro_blue" || user?.tier === "pro_purple";
+
+  // Category breakdown for Pro analytics
+  const categoryBreakdown = useMemo(() => {
+    if (!isPro) return [];
+    const map: Record<string, number> = {};
+    for (const t of transactions) {
+      if (t.type === "expense") map[t.category] = (map[t.category] ?? 0) + t.amount;
+    }
+    const total = Object.values(map).reduce((s, v) => s + v, 0);
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cat, amt]) => ({ cat, amt, pct: total > 0 ? Math.round((amt / total) * 100) : 0 }));
+  }, [transactions, isPro]);
+
   const recent = transactions.slice(0, 5);
   const monthName = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const netIsPositive = stats.net >= 0;
@@ -195,6 +211,59 @@ export default function DashboardScreen() {
             recent.map((t) => <TransactionItem key={t.id} transaction={t} />)
           )}
         </View>
+
+        {/* Analytics Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Analytics</Text>
+            {isPro && (
+              <View style={[styles.proBadge, { backgroundColor: colors.badgeBlue + "20", borderColor: colors.badgeBlue + "40" }]}>
+                <Text style={[styles.proBadgeText, { color: colors.badgeBlue }]}>Pro</Text>
+              </View>
+            )}
+          </View>
+
+          {isPro ? (
+            <View style={[styles.analyticsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.analyticsSubLabel, { color: colors.mutedForeground }]}>Top Expense Categories</Text>
+              {categoryBreakdown.length === 0 ? (
+                <Text style={[styles.analyticsEmpty, { color: colors.mutedForeground }]}>No expense data yet</Text>
+              ) : (
+                categoryBreakdown.map(({ cat, amt, pct }) => (
+                  <View key={cat} style={styles.catRow}>
+                    <View style={styles.catLabelRow}>
+                      <Text style={[styles.catName, { color: colors.foreground }]}>{cat}</Text>
+                      <Text style={[styles.catAmt, { color: colors.mutedForeground }]}>{pct}%</Text>
+                    </View>
+                    <View style={[styles.catTrack, { backgroundColor: colors.border }]}>
+                      <View style={[styles.catFill, { width: `${pct}%` as any, backgroundColor: colors.expense }]} />
+                    </View>
+                    <Text style={[styles.catValue, { color: colors.expense }]}>{format(amt)}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.lockedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push("/upgrade")}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.lockIcon, { backgroundColor: colors.badgeBlue + "20" }]}>
+                <Feather name="lock" size={22} color={colors.badgeBlue} />
+              </View>
+              <Text style={[styles.lockedTitle, { color: colors.foreground }]}>Analytics & Charts</Text>
+              <Text style={[styles.lockedSub, { color: colors.mutedForeground }]}>
+                Lihat breakdown pengeluaran, grafik bulanan, dan insight keuangan mendalam.
+              </Text>
+              <View style={[styles.unlockBtn, { backgroundColor: colors.badgeBlue + "20", borderColor: colors.badgeBlue + "40" }]}>
+                <Feather name="star" size={13} color={colors.badgeBlue} />
+                <Text style={[styles.unlockBtnText, { color: colors.badgeBlue }]}>Upgrade ke Pro untuk membuka →</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+
       </ScrollView>
 
       {/* FAB */}
@@ -298,6 +367,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   emptyBtnText: { color: "white", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  proBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
+  proBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  analyticsCard: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 12 },
+  analyticsSubLabel: { fontSize: 12, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.5 },
+  analyticsEmpty: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 8 },
+  catRow: { gap: 4 },
+  catLabelRow: { flexDirection: "row", justifyContent: "space-between" },
+  catName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  catAmt: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  catTrack: { height: 5, borderRadius: 3, overflow: "hidden" },
+  catFill: { height: 5, borderRadius: 3 },
+  catValue: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  lockedCard: { borderRadius: 14, borderWidth: 1, padding: 20, alignItems: "center", gap: 10 },
+  lockIcon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  lockedTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  lockedSub: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19 },
+  unlockBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, marginTop: 4 },
+  unlockBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   fab: {
     position: "absolute",
     bottom: 100,

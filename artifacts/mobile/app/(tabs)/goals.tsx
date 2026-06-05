@@ -16,18 +16,25 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GoalCard } from "@/components/GoalCard";
 import { SavingsGoal, useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useColors } from "@/hooks/useColors";
+
+const BASIC_GOAL_LIMIT = 3;
 
 export default function GoalsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { goals, deleteGoal, updateGoal } = useApp();
+  const { user } = useAuth();
   const { format, inputPrefix, currency } = useCurrency();
   const [fundGoal, setFundGoal] = useState<SavingsGoal | null>(null);
   const [fundAmount, setFundAmount] = useState("");
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const isPro = user?.tier === "pro_blue" || user?.tier === "pro_purple";
+  const atBasicLimit = !isPro && goals.length >= BASIC_GOAL_LIMIT;
 
   const totalSaved = useMemo(() => goals.reduce((s, g) => s + g.currentAmount, 0), [goals]);
   const totalTarget = useMemo(() => goals.reduce((s, g) => s + g.targetAmount, 0), [goals]);
@@ -57,6 +64,21 @@ export default function GoalsScreen() {
     setFundAmount("");
   };
 
+  const handleNewGoal = () => {
+    if (atBasicLimit) {
+      Alert.alert(
+        "🔒 Batas Tercapai",
+        `Paket Basic hanya mendukung ${BASIC_GOAL_LIMIT} savings goals. Upgrade ke Pro untuk goals tak terbatas!`,
+        [
+          { text: "Nanti saja", style: "cancel" },
+          { text: "Upgrade Sekarang", onPress: () => router.push("/upgrade") },
+        ],
+      );
+      return;
+    }
+    router.push("/add-goal");
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <FlatList
@@ -69,12 +91,27 @@ export default function GoalsScreen() {
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.foreground }]}>Savings Goals</Text>
               <TouchableOpacity
-                style={[styles.addBtn, { backgroundColor: colors.primary }]}
-                onPress={() => router.push("/add-goal")}
+                style={[styles.addBtn, { backgroundColor: atBasicLimit ? colors.mutedForeground + "40" : colors.primary }]}
+                onPress={handleNewGoal}
               >
-                <Feather name="plus" size={18} color="white" />
+                <Feather name={atBasicLimit ? "lock" : "plus"} size={18} color="white" />
               </TouchableOpacity>
             </View>
+
+            {/* Basic limit banner */}
+            {!isPro && (
+              <TouchableOpacity
+                style={[styles.limitBanner, { backgroundColor: colors.card, borderColor: colors.badgeBlue + "40" }]}
+                onPress={() => router.push("/upgrade")}
+                activeOpacity={0.8}
+              >
+                <Feather name="info" size={14} color={colors.badgeBlue} />
+                <Text style={[styles.limitBannerText, { color: colors.mutedForeground }]}>
+                  Paket Basic: {goals.length}/{BASIC_GOAL_LIMIT} goals ·{" "}
+                  <Text style={{ color: colors.badgeBlue }}>Upgrade untuk unlimited →</Text>
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Overview card */}
             <View style={[styles.overviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -94,7 +131,7 @@ export default function GoalsScreen() {
                 <View
                   style={[
                     styles.overviewFill,
-                    { width: `${overallPct}%` as any, backgroundColor: colors.primary },
+                    { width: `${overallPct}%` as `${number}%`, backgroundColor: colors.primary },
                   ]}
                 />
               </View>
@@ -112,7 +149,7 @@ export default function GoalsScreen() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => router.push("/add-goal")}
+                  onPress={handleNewGoal}
                 >
                   <Feather name="plus" size={14} color="white" />
                   <Text style={styles.emptyBtnText}>Create First Goal</Text>
@@ -178,9 +215,11 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   list: { paddingHorizontal: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   title: { fontSize: 24, fontFamily: "Inter_700Bold" },
   addBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  limitBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 14 },
+  limitBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular" },
   overviewCard: { borderRadius: 16, borderWidth: 1, padding: 18, marginBottom: 20, gap: 12 },
   overviewTop: { flexDirection: "row", justifyContent: "space-between" },
   overviewLabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 4 },
@@ -189,57 +228,21 @@ const styles = StyleSheet.create({
   overviewTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
   overviewFill: { height: 6, borderRadius: 3 },
   overviewTarget: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  empty: {
-    alignItems: "center",
-    padding: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    gap: 12,
-  },
+  empty: { alignItems: "center", padding: 48, borderRadius: 14, borderWidth: 1, borderStyle: "dashed", gap: 12 },
   emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
-  emptyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 4,
-  },
+  emptyBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, marginTop: 4 },
   emptyBtnText: { color: "white", fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalBox: { width: "100%", borderRadius: 16, borderWidth: 1, padding: 24, gap: 14 },
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   modalSub: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  amountInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    height: 56,
-    gap: 6,
-  },
+  amountInput: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, height: 56, gap: 6 },
   dollarSign: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   amountField: { flex: 1, fontSize: 24, fontFamily: "Inter_700Bold" },
   modalHint: { fontSize: 12, fontFamily: "Inter_400Regular" },
   modalBtns: { flexDirection: "row", gap: 10 },
-  modalCancel: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modalCancel: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   modalCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   modalConfirm: { flex: 1, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   modalConfirmText: { color: "white", fontSize: 15, fontFamily: "Inter_600SemiBold" },

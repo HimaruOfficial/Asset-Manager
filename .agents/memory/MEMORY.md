@@ -1,0 +1,2 @@
+- [FinTrack architecture](fintrack-arch.md) — No DB; user-store.ts is tier source of truth; AsyncStorage for client data.
+- [Expo JSX Babel quirks](expo-jsx-quirks.md) — Template literal types in JSX and module-level process.env cause parse/hoisting errors.

@@ -33,7 +33,32 @@ const TIER_COLORS: Record<BadgeTier, string> = {
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, logout, updateProfile } = useAuth();
+  const { user: rawUser, logout, updateProfile } = useAuth();
+
+  // --- KODE PENENGAH FORMAT DATA ---
+  const user = React.useMemo(() => {
+    if (!rawUser) return null;
+
+    let mappedTier = rawUser.tier;
+    // Mengambil data dari variabel badge atau badge_type
+    const currentBadge = (rawUser as any).badge || rawUser.badge_type; 
+
+    // Jika terbaca "Pro" dari database, kita paksa ubah formatnya
+    if (rawUser.tier === "Pro" || rawUser.tier === "pro") {
+      if (currentBadge === "Verified Purple") {
+        mappedTier = "pro_purple";
+      } else {
+        mappedTier = "pro_blue"; // Default menjadi centang biru
+      }
+    }
+
+    return {
+      ...rawUser,
+      tier: mappedTier as BadgeTier,
+      badge_type: currentBadge
+    };
+  }, [rawUser]);
+  // --------------------------------- 
   const [editingName, setEditingName] = useState(false);
   const [editingTelegram, setEditingTelegram] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
@@ -242,6 +267,19 @@ export default function ProfileScreen() {
                 <View style={styles.rowLeft}>
                   <Feather name="star" size={16} color={colors.badgeBlue} />
                   <Text style={[styles.rowLabel, { color: colors.badgeBlue }]}>Upgrade to Pro</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            </>
+          )}
+          {/* Admin Dashboard — visible only to admin user */}
+          {user?.username?.toLowerCase() === (process.env["EXPO_PUBLIC_ADMIN_USERNAME"] ?? "admin").toLowerCase() && (
+            <>
+              <TouchableOpacity style={styles.row} onPress={() => router.push("/(tabs)/admin")}>
+                <View style={styles.rowLeft}>
+                  <Feather name="shield" size={16} color={colors.badgePurple} />
+                  <Text style={[styles.rowLabel, { color: colors.badgePurple }]}>Admin Dashboard</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>

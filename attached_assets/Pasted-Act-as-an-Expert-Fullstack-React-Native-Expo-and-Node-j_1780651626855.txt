@@ -1,0 +1,42 @@
+Act as an Expert Fullstack React Native (Expo) and Node.js Developer. I need you to implement a major architectural fix, admin dashboard system, and feature expansion for my "Savings & Expense Tracker" app. Read all instructions carefully and implement them flawlessly in a single generation to avoid any compilation errors.
+
+CONTEXT & PROBLEM:
+Currently, the app reads user profiles from a PostgreSQL database using Drizzle ORM. However, my Telegram Bot was previously trying to upgrade users by hitting a Google Sheets webhook, causing a "split-brain" where the app always showed "Basic" because the PostgreSQL database wasn't updated.
+
+OBJECTIVES:
+
+1. UNIFY DATABASE UPDATES (TELEGRAM BOT)
+Modify the Telegram Bot backend logic (in artifacts/api-server). When the admin types `/upgrade <username> <tier>` (tiers: pro_blue, pro_purple, basic), the bot MUST update the user's tier and badge directly in the PostgreSQL database using Drizzle ORM (`db.update(users).set(...)`). Ensure the success message is only sent to Telegram if the PostgreSQL update is successful.
+
+2. BUILD AN ADMIN DASHBOARD (FRONTEND & BACKEND)
+- Backend: Create 2 new endpoints in the API server:
+  a. `GET /api/admin/users`: Fetch all users from PostgreSQL.
+  b. `POST /api/admin/upgrade`: Accept `userId` and `newTier` to update the user's status in PostgreSQL.
+- Frontend: Create a new hidden Admin Dashboard screen in the Expo app (e.g., `app/(tabs)/admin.tsx` or similar). This screen should display a list of all registered users. Add buttons next to each "Basic" user to easily upgrade them to "Pro Blue" or "Pro Purple". The dashboard must call the new endpoints and refresh the list upon success.
+
+3. CHANGE CURRENCY TO IDR
+Update the "Upgrade to Pro" screen (and any pricing logic in the frontend). Change all pricing representations from USD to IDR (Indonesian Rupiah). For example, Rp 15.000 for Blue and Rp 35.000 for Purple. Format the currency numbers cleanly and professionally.
+
+4. INVENT & IMPLEMENT TIERED FEATURES (AI'S CREATIVE TASK)
+I want "Verified Blue" (pro_blue) and "Verified Purple" (pro_purple) to have actual functional benefits in the app, not just a badge.
+- Brainstorm and implement these features throughout the app code.
+- Feature Ideas:
+  * Basic: Limited to 30 transactions/month, basic categories, no analytical charts.
+  * Pro Blue (Slightly superior): Unlimited transactions, unlocks advanced Analytics/Charts screen, custom categories.
+  * Pro Purple (Most superior): Everything in Blue, plus Export data to PDF/Excel functionality, unlimited savings goals, and a premium dark/gold UI theme toggle.
+- Modify the frontend components to lock/unlock these features dynamically based on `user?.tier`. Show a "Locked: Upgrade to Pro" overlay or disabled button for Basic users trying to access Pro features.
+
+5. REAL-TIME BROADCAST NOTIFICATION TO UPGRADED USERS
+When a user is successfully upgraded to Pro (either via the Telegram Bot or the Admin Dashboard), the backend system MUST trigger a real-time notification to that specific user.
+- Implement an in-app notification trigger (or socket/toast alert event).
+- When the upgraded user opens their app (or if they are currently active), they should instantly see a beautiful congratulatory alert or toast message: "🎉 Congratulations! Your account has been upgraded to [Pro Blue / Pro Purple]!".
+- Ensure the frontend state (AuthContext) re-fetches the profile automatically upon receiving this trigger so the blue/purple checkmark badge appears instantly without requiring manual logout/login.
+
+STRICT CONSTRAINTS FOR ERROR-FREE COMPILATION:
+- Fix any existing TypeScript typecheck errors (TS2345, TS2820).
+- Ensure all Drizzle ORM queries are strictly typed according to your `schema.ts`.
+- Ensure frontend state management (AuthContext) correctly maps and reads `pro_blue` and `pro_purple`.
+- Do not remove existing environment variables; extend the backend logic to handle PostgreSQL correctly.
+- Review all imports (expo-router, react-native, lucide-react-native / Feather) to ensure zero broken dependencies.
+
+Generate and apply the full code modifications across the repository now.

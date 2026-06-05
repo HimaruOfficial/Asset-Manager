@@ -112,6 +112,14 @@ function ClassicTabLayout() {
             ),
         }}
       />
+      {/* Admin tab — hidden from tab bar, accessible via router.push("/(tabs)/admin") */}
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Admin",
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
