@@ -6,16 +6,13 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "projectDir": "artifacts/mobile"
+      "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "projectDir": "artifacts/mobile"
+      "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "projectDir": "artifacts/mobile"
+      "autoIncrement": true
     }
   },
   "submit": {
