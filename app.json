@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "TrackFinance",
+    "slug": "workspace",
+    "version": "1.0.0",
+    "sdkVersion": "51.0.0",
+    "platforms": ["android", "ios"],
+    "android": {
+      "package": "com.himaruofficial.workspace"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8783e810-ff3b-4ac5-bb1b-9f456e791d71"
+      }
+    }
+  }
+}
