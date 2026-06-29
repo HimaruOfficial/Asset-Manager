@@ -18,4 +18,13 @@
   "submit": {
     "production": {}
   }
+
+  {
+  "build": {
+    "preview": {
+      "env": {
+        "EXPO_PROJECT_ROOT": "artifacts/mobile"
+      }
+    }
+  }
 }
