@@ -7,15 +7,15 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "config": { "projectDir": "artifacts/mobile" }
+      "projectDir": "artifacts/mobile"
     },
     "preview": {
       "distribution": "internal",
-      "config": { "projectDir": "artifacts/mobile" }
+      "projectDir": "artifacts/mobile"
     },
     "production": {
       "autoIncrement": true,
-      "config": { "projectDir": "artifacts/mobile" }
+      "projectDir": "artifacts/mobile"
     }
   },
   "submit": {
