@@ -3,6 +3,7 @@
     "name": "SmartCapital",
     "slug": "smartcapital",
     "version": "1.0.0",
+    "sdkVersion": "51.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "smartcapital",
@@ -37,6 +38,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f97a1ab8-2cce-4fac-9b8d-1b6f1b627507"
+      }
     }
   }
 }
